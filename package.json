@@ -1,0 +1,14 @@
+{
+  "name": "fakepay_challenge",
+  "version": "1.0.0",
+  "description": "fakepay challenge for chargify interview",
+  "main": "app.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "Bill Cheng",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
