@@ -218,8 +218,14 @@ describe('Subscriptions API', function() {
     var actual_response = {};
     var Subscription = new SubscriptionModel;
     var new_subscription = {
-      task: 'Create random task name #' + Math.random(),
-      description: 'Pick a random number, e.g. ' + Math.random()
+      name: 'Bugs',
+      address: "Bug's House",
+      shipping_zip: "33004",
+      card: "4242424242424242",
+      expiration: new Date(3000, 0),
+      cvv: "123",
+      billing_zip: "33004",
+      product: "silver"
     };
 
     before(function(done){
@@ -234,8 +240,8 @@ describe('Subscriptions API', function() {
     })
 
 
-    it('should respond with status 200 - Success', function (done) {
-      expect(actual_response.statusCode).to.equal(200);
+    it('should respond with status 204 - Success', function (done) {
+      expect(actual_response.statusCode).to.equal(204);
       done();
     });
 
