@@ -1,4 +1,10 @@
 ### Steps to Run:
+
+Dependencies:
+1. node
+2. MySQL
+
+
 1. Clone this repo
 2. Change to the repo in cmd
 3. In cmd `npm i`
