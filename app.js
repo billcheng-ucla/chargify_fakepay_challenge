@@ -8,7 +8,7 @@ const PAYMENT_URL = "https://www.fakepay.io/purchase";
 const fetch = require("node-fetch");
 const dbConfig = config.get('dbConfig');
 let products = {};
-
+let fakepay_errors = {};
 const pool = mysql.createPool({
   host: dbConfig.host,
   user: dbConfig.user,
@@ -28,7 +28,7 @@ class StatusError extends Error {
 
 const promisePool = pool.promise();
 
-const boxResults = promisePool.query("SELECT * FROM boxes", ).then(([rows, fields]) => {
+const boxResults = promisePool.query("SELECT * FROM boxes").then(([rows, fields]) => {
   for (box of rows) {
     products[box.boxId] = box.price;
   }
@@ -36,12 +36,21 @@ const boxResults = promisePool.query("SELECT * FROM boxes", ).then(([rows, field
 }).catch((err) => {
   console.log(err);
 });
+
+promisePool.query("SELECT * FROM fakepay_errors").then(([rows, fields]) => {
+  for (error of rows) {
+    fakepay_errors[error.code] = error.description;
+  }
+}).catch((err) => {
+  console.log(err);
+});
+
 let getExpiration = (date) => {
   if (typeof date === "string") {
     date = new Date(date);
     console.log(date.toString());
   }
-  let month = date.getMonth().toString();
+  let month = (date.getMonth() + 1).toString();
   if(month.length < 2) {
     month = '0' + month;
   }
@@ -59,7 +68,6 @@ let postPayment = async (url, data) => {
     },
     body: JSON.stringify(data)
   });
-  console.log(response);
   return response.json();
 };
 
@@ -78,7 +86,7 @@ let subscriptionTransaction = async (billing, subscription) => {
     let message;
     if (err.errno === 1062) {
       status = 409;
-      message = `You are already subscribed to ${subscription.boxId}`;
+      message = `You are already subscribed to ${subscription.boxId}. You will still recieve this product.`;
     } else {
       status = 500;
       message = `Subscription failed. You will still recieve this product. Please create another order to reorder`;
@@ -90,6 +98,7 @@ let subscriptionTransaction = async (billing, subscription) => {
 };
 
 let validatePostSubscriptionRequest = (requestBody) => {
+  console.log(requestBody);
   let faults = [];
   ["card", "cvv", "expiration", "billing_zip", "name", "address", "shipping_zip", "product"].forEach(item => {
     if(!requestBody[item]) {
@@ -112,7 +121,7 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 });
 
-app.post('/api/subscriptions', (req, res) => {
+app.post('/api/subscriptions', async (req, res) => {
   try {
     let faults = validatePostSubscriptionRequest(req.body);
     if (faults.length > 0) {
@@ -126,26 +135,24 @@ app.post('/api/subscriptions', (req, res) => {
     */
     let expiration = getExpiration(req.body.expiration);
     console.log(expiration);
-    /*
+    
     let payment = {
       amount: products[req.body.product], 
       card_number: req.body.card, 
       cvv: req.body.cvv,
       expiration_month: expiration.month,
       expiration_year: expiration.year,
-      zip_cody: req.body.billing_zip
+      zip_code: req.body.billing_zip
     };
-    postPayment(PAYMENT_URL, payment).then((data) => {
-      console.log(data);
-    });
-    */
-    let fakePayment = {"token":"ABCDE","success":true,"error_code":null};
-    let month = parseInt(expiration.month[expiration.month.length - 1]) + 1;
-    let nmlMonth = expiration.month.split('');
-    nmlMonth[nmlMonth.length - 1] = month.toString();
-    console.log(nmlMonth);
-    expiration.month = nmlMonth.join('');
-    console.log(expiration)
+    const fakePayment = await postPayment(PAYMENT_URL, payment);
+    console.log(fakePayment)
+    if(typeof fakePayment === "string") {
+      throw new StatusError(`${fakePayment} Please contact the support team to update the token`, 500);
+    }
+    if(fakePayment.error_code !== null) {
+      throw new StatusError(`Error ${fakePayment.error_code} - ${fakepay_errors[fakePayment.error_code]}`, 409);
+    }
+
     let billing = {
       token: fakePayment.token,
       cvv: req.body.cvv,
@@ -159,16 +166,10 @@ app.post('/api/subscriptions', (req, res) => {
       token: fakePayment.token,
       boxId: req.body.product,
     };
-    subscriptionTransaction(billing, subscription)
-    .then(() => {
-      res.status(204).send(`You are now subscribed to ${req.body.product}`);
-    })
-    .catch((err) => {
-      throw err;
-    })
+    await subscriptionTransaction(billing, subscription);
+    res.status(201).json({message: `You are now subscribed to ${req.body.product}`}); 
   } catch(err) {
-    console.log(err);
-    res.status(err.status).send(err.message);
+    res.status(err.status).json({message: err.message});
   }
   
 

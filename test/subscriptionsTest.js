@@ -3,7 +3,7 @@ var request = require('request'),
     Q = require('q'),
     _ = require('underscore');
 
-TIMEOUT = 200;
+TIMEOUT = 20000000;
 
 var fetcher = (function(request, q) {
   // This module is a wrapper around the request library.
@@ -104,124 +104,16 @@ var base_url = 'http://localhost:3000';
 
 describe('Subscriptions API', function() {
   // this.timeout(TIMEOUT); // Overriden by timeout error raised in fetcher module
-  /*
-  describe('GET /api/subscriptions (index)', function(){
-    it('should respond with status 200', function (done) {
-      fetcher
-        .get(base_url + '/api/subscriptions')
-        .then(function(response){
-          expect(response.statusCode).to.equal(200);
-          done();
-        })
-        .fail(done);
-    });
-
-    it('should respond with a javascript object translated into JSON format', function (done) {
-      fetcher
-        .get(base_url + '/api/subscriptions')
-        .then(function(response) {
-          ensureJSON(response, done);
-        })
-        .fail(done);
-    });
-
-    
-    it('the JSON object should have one key-value pair. The key should be called "data". The value should be the hardcoded array of subscriptions', function (done) {
-
-      fetcher
-        .get(base_url + '/api/subscriptions')
-        .then(function (response) {
-          expect(response.json)
-            .to.have.property("data")
-            .and.be.an("array")
-              .and.have.property(0)
-              .and.have.all.keys(["task", "description", "_id"]);
-
-          done();
-        })
-        .fail(done);
-    });
-
-    it('subscription objects should have properities: _id, description, task', function (done) {
-      fetcher
-        .get(base_url + '/api/subscriptions')
-        .then(function (response) {
-          var first_subscription = response.json.data[0]
-
-          expect(first_subscription)
-            .to.have.property("task")
-            .and.to.be.a("string");
-
-          expect(first_subscription)
-            .to.have.property("description")
-            .and.to.be.a("string");
-
-          expect(first_subscription)
-            .to.have.property("_id")
-            .and.to.be.a("number");
-
-          done();
-        })
-        .fail(done);
-    });
-  });
-
-
-  describe('GET /api/subscriptions/:id (show)', function(){
-
-    var actual_response = {};
-    var Subscription = new SubscriptionModel;
-
-    before(function(done){
-      Subscription.loadAll()
-        .then(function(){
-          fetcher
-            .get(base_url + '/api/subscriptions/' + Subscription.random._id)
-            .then(function (response) {
-                actual_response.statusCode = response.statusCode;
-                actual_response.json = response.json;
-                done();
-              })
-            .fail(done);
-        })
-        .fail(done);
-    });
-
-    it('should respond with status 200 - Success', function (done) {
-      expect(actual_response.statusCode).to.equal(200);
-      done();
-    });
-
-    it('should respond with JSON', function (done) {
-      ensureJSON(actual_response, done);
-    });
-
-    it('should fetch one specific subscription by _id', function (done) {
-      expect(actual_response.json)
-        .to.have.property("task")
-        .and.equal(Subscription.random.task);
-
-      expect(actual_response.json)
-        .to.have.property("description")
-        .and.equal(Subscription.random.description);
-
-      expect(actual_response.json)
-        .to.have.property("_id")
-        .and.equal(Subscription.random._id);
-
-      done();
-    });
-  });
-  */
+  
   describe('POST /api/subscriptions (create)', function(){
 
     var actual_response = {};
     var Subscription = new SubscriptionModel;
     var new_subscription = {
-      name: 'Bugs',
+      name: 'Bugs Bunny',
       address: "Bug's House",
       shipping_zip: "33004",
-      card: "4242424242424242",
+      card: /*"4242424242424241",*/"4242424242424242",
       expiration: new Date(3000, 0),
       cvv: "123",
       billing_zip: "33004",
@@ -241,7 +133,7 @@ describe('Subscriptions API', function() {
 
 
     it('should respond with status 204 - Success', function (done) {
-      expect(actual_response.statusCode).to.equal(204);
+      expect(actual_response.statusCode).to.equal(201);
       done();
     });
 
@@ -249,35 +141,15 @@ describe('Subscriptions API', function() {
       ensureJSON(actual_response, done);
     });
 
-    it('should respond with the new subscription object', function (done) {
-      expect(actual_response.json)
-        .to.have.property("task")
-        .and.equal(new_subscription.task);
-
-      expect(actual_response.json)
-        .to.have.property("description")
-        .and.to.equal(new_subscription.description);
-
-      done();
-    });
-
-    it('should assign an _id to the new subscription object', function (done) {
-      expect(actual_response.json).to.have.property("_id");
-      done();
-    });
-
-    it('should increment the _id number by one each time a subscription is created', function (done) {
-      var previous_id = actual_response.json._id;
-      expect(previous_id).to.be.a("number");
+    it('should not create a new subscription if user already subscribed to the product', function (done) {
 
       // we're creating the same subscription again, but the _id should be different this time!
       fetcher
         .post(base_url + '/api/subscriptions', new_subscription)
         .then(
           function(response) {
-            expect(response.json)
-              .to.have.property("_id")
-              .and.to.be.above(previous_id);
+            expect(response.statusCode).to.equal(409);
+            expect(response.json.message).to.equal('You are already subscribed to silver. You will still recieve this product.');
             done();
           }
         )
@@ -285,138 +157,4 @@ describe('Subscriptions API', function() {
     });
 
   });
-  /*
-  describe('DELETE /api/subscriptions/:id (destroy)', function(){
-
-    var actual_response = {}
-    var Subscription = new SubscriptionModel;
-
-    before(function(done){
-      Subscription.loadAll()
-        .then(function(){
-          fetcher
-            .del(base_url + '/api/subscriptions/' + Subscription.random._id)
-            .then(function(response) {
-              actual_response.statusCode = response.statusCode;
-              actual_response.json = response.json;
-              done();
-            })
-            .fail(done)
-        })
-        .fail(done)
-    });
-
-    it('should respond with 200 or 204 on success', function(done) {
-      expect([200,204]).to.include(actual_response.statusCode);
-      done();
-    });
-
-    it('should delete one specific subscription from the list of subscriptions', function (done) {
-      fetcher
-        .get(base_url + '/api/subscriptions')
-        .then(function(response){
-          var current_subscriptions = response.json.data;
-          expect(current_subscriptions)
-            .to.have.length(Subscription.all.length - 1)
-            .and.not.deep.include(Subscription.random);
-
-          done();
-        })
-      .fail(done)
-    });
-  });
-
-
-  describe('PUT /api/subscriptions/:id (update)', function(){
-
-    var actual_response = {};
-    var Subscription = new SubscriptionModel;
-    var updated_subscription = {
-      task: 'Return order #' + Math.random(),
-      description: 'Shipping label #' + Math.random()
-    };
-
-    before(function(done){
-      Subscription.loadAll()
-        .then(function(){
-          fetcher
-            .put(base_url + '/api/subscriptions/' + Subscription.random._id, updated_subscription)
-            .then(function (response) {
-              actual_response.statusCode = response.statusCode;
-              actual_response.json = response.json;
-              Subscription.original_subscription = Subscription.random;
-              done();
-            })
-            .fail(done);
-
-        })
-        .fail(done);
-    });
-
-    it('should respond with status 200 - Success', function (done) {
-      expect(actual_response.statusCode).to.equal(200);
-      done();
-    });
-
-    it('should respond with JSON', function (done) {
-      ensureJSON(actual_response, done);
-    });
-
-    it('should update the properities of one specific subscription', function (done) {
-      expect(actual_response.json)
-        .to.have.property("task")
-        .and.to.equal(updated_subscription.task);
-
-      expect(actual_response.json)
-        .to.have.property("description")
-        .and.equal(updated_subscription.description);
-
-      expect(actual_response.json)
-        .to.have.property("_id")
-        .and.equal(Subscription.original_subscription._id);
-
-      done();
-    });
-  });
-
-
-  describe('GET /api/subscriptions/search (search)', function(){
-
-    var actual_response = {};
-    var Subscription = new SubscriptionModel;
-    var search_word = _.sample(["surf", "sperlunk", "ski"])
-    var updated_subscription = {
-      task: search_word,
-      description: 'dude... ' + Math.random()
-    };
-
-    before(function(done){
-      Subscription.loadAll()
-        .then(function(){
-          fetcher
-            .put(base_url + '/api/subscriptions/' + Subscription.random._id, updated_subscription)
-            .then(function(response){
-              Subscription.original_subscription = response.json;
-              done();
-            })
-            .fail(done)
-        })
-        .fail(done)
-    });
-
-    it('should list all subscriptions that contain the search term from the query parameter (e.g. `?q=discover`) in the task field', function(done){
-      fetcher
-        .get(base_url + '/api/subscriptions/search?q=' + search_word)
-        .then(function(response){
-          expect(response.json)
-            .to.have.property("data")
-            .and.be.an("array")
-            .and.deep.include(Subscription.original_subscription);
-          done();
-        })
-        .fail(done);
-    });
-
-  });
-  */
 });
